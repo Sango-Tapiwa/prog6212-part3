@@ -1,0 +1,263 @@
+﻿@model CMCS.ViewModels.ClaimSubmissionViewModel
+@{
+    ViewData["Title"] = "Submit Claim";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="display-6">
+        <i class="fas fa-plus me-2"></i>Submit New Claim
+    </h1>
+    <a asp-action="Index" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-1"></i>Back to Dashboard
+    </a>
+</div>
+
+<form asp-action="SubmitClaim" method="post" enctype="multipart/form-data" id="claimForm">
+    <div asp-validation-summary="All" class="alert alert-danger" style="display: none;"></div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-calendar me-1"></i>Claim Details
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label asp-for="SubmissionDate" class="form-label">Submission Date</label>
+                            <input asp-for="SubmissionDate" class="form-control" readonly />
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label asp-for="LecturerName" class="form-label">Lecturer</label>
+                            <input asp-for="LecturerName" class="form-control" readonly />
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label asp-for="HourlyRate" class="form-label">Your Hourly Rate</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input asp-for="HourlyRate" class="form-control" readonly />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-tasks me-1"></i>Claim Items
+                    </h5>
+                    <button type="button" class="btn btn-light btn-sm" onclick="addClaimItem()">
+                        <i class="fas fa-plus me-1"></i>Add Item
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="claimItems">
+                        @for (int i = 0; i < (Model.ClaimItems.Any() ? Model.ClaimItems.Count : 1); i++)
+                        {
+                            <div class="claim-item border rounded p-3 mb-3">
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <label class="form-label">Date</label>
+                                        <input name="ClaimItems[@i].Date" type="date" class="form-control" value="@(Model.ClaimItems.Any() ? Model.ClaimItems[i].Date.ToString("yyyy-MM-dd") : DateTime.Today.ToString("yyyy-MM-dd"))" />
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label">Hours Worked</label>
+                                        <input name="ClaimItems[@i].HoursWorked" type="number" step="0.1" min="0.1" max="24" class="form-control hours-input" value="@(Model.ClaimItems.Any() ? Model.ClaimItems[i].HoursWorked : 0)" />
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label">Hourly Rate ($)</label>
+                                        <input name="ClaimItems[@i].HourlyRate" type="number" step="0.01" min="0.01" class="form-control rate-input" value="@Model.HourlyRate" readonly />
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Activity Description</label>
+                                        <textarea name="ClaimItems[@i].ActivityDescription" class="form-control" rows="2" placeholder="Describe the activity...">@(Model.ClaimItems.Any() ? Model.ClaimItems[i].ActivityDescription : "")</textarea>
+                                    </div>
+                                    <div class="col-md-1 d-flex align-items-end">
+                                        <button type="button" class="btn btn-danger btn-sm" onclick="removeClaimItem(this)" title="Remove Item">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="row mt-2">
+                                    <div class="col-md-12 text-end">
+                                        <strong>Line Total: $<span class="line-total">0.00</span></strong>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-paperclip me-1"></i>Supporting Documents
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="documents" class="form-label">Upload Files</label>
+                        <input type="file" name="Documents" id="documents" class="form-control" multiple accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" />
+                        <div class="form-text">
+                            Accepted formats: PDF, Word documents, Images<br>
+                            Maximum size: 5MB per file
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">
+                        <i class="fas fa-calculator me-1"></i>Claim Summary
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tr>
+                            <td>Total Items:</td>
+                            <td class="text-end"><strong><span id="totalItems">0</span></strong></td>
+                        </tr>
+                        <tr>
+                            <td>Total Hours:</td>
+                            <td class="text-end"><strong><span id="totalHours">0.0</span></strong></td>
+                        </tr>
+                        <tr class="border-top">
+                            <td><strong>Total Amount:</strong></td>
+                            <td class="text-end"><h5 class="text-success mb-0">$<span id="totalAmount">0.00</span></h5></td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="d-grid gap-2 mt-4">
+                <button type="submit" class="btn btn-success btn-lg">
+                    <i class="fas fa-paper-plane me-1"></i>Submit Claim
+                </button>
+                <a asp-action="Index" class="btn btn-outline-secondary">
+                    <i class="fas fa-times me-1"></i>Cancel
+                </a>
+            </div>
+        </div>
+    </div>
+</form>
+
+@section Scripts {
+    <script>
+        let itemCount = @(Model.ClaimItems.Any() ? Model.ClaimItems.Count : 1);
+        const hourlyRate = @Model.HourlyRate;
+
+        function addClaimItem() {
+            const claimItemsDiv = document.getElementById('claimItems');
+            const newItemHtml = `
+                <div class="claim-item border rounded p-3 mb-3">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <label class="form-label">Date</label>
+                            <input name="ClaimItems[${itemCount}].Date" type="date" class="form-control" value="${new Date().toISOString().split('T')[0]}" />
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Hours Worked</label>
+                            <input name="ClaimItems[${itemCount}].HoursWorked" type="number" step="0.1" min="0.1" max="24" class="form-control hours-input" value="0" />
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Hourly Rate ($)</label>
+                            <input name="ClaimItems[${itemCount}].HourlyRate" type="number" step="0.01" min="0.01" class="form-control rate-input" value="${hourlyRate}" readonly />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Activity Description</label>
+                            <textarea name="ClaimItems[${itemCount}].ActivityDescription" class="form-control" rows="2" placeholder="Describe the activity..."></textarea>
+                        </div>
+                        <div class="col-md-1 d-flex align-items-end">
+                            <button type="button" class="btn btn-danger btn-sm" onclick="removeClaimItem(this)" title="Remove Item">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-md-12 text-end">
+                            <strong>Line Total: $<span class="line-total">0.00</span></strong>
+                        </div>
+                    </div>
+                </div>
+            `;
+            claimItemsDiv.insertAdjacentHTML('beforeend', newItemHtml);
+            itemCount++;
+            updateCalculations();
+            attachEventListeners();
+        }
+
+        function removeClaimItem(button) {
+            if (document.querySelectorAll('.claim-item').length > 1) {
+                button.closest('.claim-item').remove();
+                updateCalculations();
+            }
+        }
+
+        function updateCalculations() {
+            let totalItems = 0;
+            let totalHours = 0;
+            let totalAmount = 0;
+
+            document.querySelectorAll('.claim-item').forEach(item => {
+                const hours = parseFloat(item.querySelector('.hours-input').value) || 0;
+                const rate = parseFloat(item.querySelector('.rate-input').value) || 0;
+                const lineTotal = hours * rate;
+
+                item.querySelector('.line-total').textContent = lineTotal.toFixed(2);
+
+                if (hours > 0 && rate > 0) {
+                    totalItems++;
+                    totalHours += hours;
+                    totalAmount += lineTotal;
+                }
+            });
+
+            document.getElementById('totalItems').textContent = totalItems;
+            document.getElementById('totalHours').textContent = totalHours.toFixed(1);
+            document.getElementById('totalAmount').textContent = totalAmount.toFixed(2);
+
+            if (totalHours > 180) {
+                document.getElementById('totalHours').parentElement.classList.add('text-danger');
+                document.getElementById('totalHours').parentElement.innerHTML =
+                    '<i class="fas fa-exclamation-triangle me-1"></i>' +
+                    document.getElementById('totalHours').parentElement.innerHTML +
+                    '<br><small>Exceeds 180-hour monthly limit!</small>';
+            } else {
+                document.getElementById('totalHours').parentElement.classList.remove('text-danger');
+            }
+        }
+
+        function attachEventListeners() {
+            document.querySelectorAll('.hours-input, .rate-input').forEach(input => {
+                input.removeEventListener('input', updateCalculations);
+                input.addEventListener('input', updateCalculations);
+            });
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            attachEventListeners();
+            updateCalculations();
+        });
+    </script>
+}
+
+<style>
+    .claim-item {
+        background-color: #f8f9fa;
+        transition: all 0.3s ease;
+    }
+
+        .claim-item:hover {
+            background-color: #e9ecef;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+</style>

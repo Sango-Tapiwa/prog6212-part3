@@ -1,0 +1,463 @@
+﻿@model IEnumerable<CMCS.Models.Claim>
+@{
+    ViewData["Title"] = "Pending Claims - Manager Review";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="display-6">
+        <i class="fas fa-clock me-2"></i>Pending Claims Review
+    </h1>
+    <div>
+        <a asp-action="Index" class="btn btn-outline-primary">
+            <i class="fas fa-tachometer-alt me-1"></i>Dashboard
+        </a>
+        <a asp-action="Reports" class="btn btn-info">
+            <i class="fas fa-chart-bar me-1"></i>Reports
+        </a>
+    </div>
+</div>
+
+<!-- Priority Alert -->
+@if (Model.Any(c => (DateTime.Now - c.SubmissionDate).Days > 7))
+{
+    <div class="alert alert-warning">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        <strong>Priority Review Required:</strong>
+        @Model.Count(c => (DateTime.Now - c.SubmissionDate).Days > 7) claims have been pending for more than 7 days.
+    </div>
+}
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-clock fa-2x mb-2"></i>
+                <h4>@Model.Count()</h4>
+                <p class="mb-0">Total Pending</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-danger text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                <h4>@Model.Count(c => (DateTime.Now - c.SubmissionDate).Days > 7)</h4>
+                <p class="mb-0">Overdue (>7 days)</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-dollar-sign fa-2x mb-2"></i>
+                <h4>@Model.Sum(c => c.TotalAmount).ToString("C0")</h4>
+                <p class="mb-0">Total Value</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-secondary text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-users fa-2x mb-2"></i>
+                <h4>@Model.Select(c => c.UserId).Distinct().Count()</h4>
+                <p class="mb-0">Lecturers</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filter Controls -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3">
+                <select class="form-select" id="statusFilter">
+                    <option value="">All Statuses</option>
+                    <option value="Submitted">Submitted</option>
+                    <option value="UnderReview">Under Review</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" id="priorityFilter">
+                    <option value="">All Priorities</option>
+                    <option value="high">High Priority (>7 days)</option>
+                    <option value="medium">Medium Priority (3-7 days)</option>
+                    <option value="normal">Normal Priority (<3 days)</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" id="lecturerFilter">
+                    <option value="">All Lecturers</option>
+                    @foreach (var lecturer in Model.Select(c => c.User).Distinct().OrderBy(u => u.FullName))
+                    {
+                        <option value="@lecturer.FullName">@lecturer.FullName</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <div class="btn-group w-100">
+                    <button class="btn btn-primary" onclick="filterClaims()">
+                        <i class="fas fa-filter me-1"></i>Filter
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="clearFilters()">
+                        <i class="fas fa-times me-1"></i>Clear
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Pending Claims Table -->
+<div class="card">
+    <div class="card-header bg-light">
+        <h5 class="mb-0">
+            <i class="fas fa-list me-1"></i>Claims Requiring Manager Review
+        </h5>
+    </div>
+    <div class="card-body">
+        @if (Model.Any())
+        {
+            <div class="table-responsive">
+                <table class="table table-hover" id="pendingClaimsTable">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Priority</th>
+                            <th>Claim ID</th>
+                            <th>Lecturer</th>
+                            <th>Submission Date</th>
+                            <th>Status</th>
+                            <th>Items</th>
+                            <th>Total Amount</th>
+                            <th>Days Pending</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var claim in Model.OrderBy(c => c.SubmissionDate))
+                        {
+                            var daysPending = (DateTime.Now - claim.SubmissionDate).Days;
+                            var priorityClass = daysPending > 7 ? "table-danger" : (daysPending > 3 ? "table-warning" : "");
+                            var priority = daysPending > 7 ? "high" : (daysPending > 3 ? "medium" : "normal");
+
+                            <tr class="@priorityClass"
+                                data-status="@claim.Status"
+                                data-lecturer="@claim.User.FullName"
+                                data-priority="@priority"
+                                data-days="@daysPending">
+                                <td>
+                                    @if (daysPending > 7)
+                                    {
+                                        <span class="badge bg-danger">
+                                            <i class="fas fa-exclamation-triangle me-1"></i>HIGH
+                                        </span>
+                                    }
+                                    else if (daysPending > 3)
+                                    {
+                                        <span class="badge bg-warning">
+                                            <i class="fas fa-clock me-1"></i>MEDIUM
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-check me-1"></i>NORMAL
+                                        </span>
+                                    }
+                                </td>
+                                <td><strong>#@claim.ClaimId</strong></td>
+                                <td>
+                                    <strong>@claim.User.FullName</strong>
+                                    <br>
+                                    <small class="text-muted">@claim.User.Email</small>
+                                </td>
+                                <td>@claim.SubmissionDate.ToString("dd/MM/yyyy HH:mm")</td>
+                                <td>
+                                    @switch (claim.Status)
+                                    {
+                                        case CMCS.Models.ClaimStatus.Submitted:
+                                            <span class="badge bg-info">
+                                                <i class="fas fa-paper-plane me-1"></i>Submitted
+                                            </span>
+                                            break;
+                                        case CMCS.Models.ClaimStatus.UnderReview:
+                                            <span class="badge bg-warning">
+                                                <i class="fas fa-eye me-1"></i>Under Review
+                                            </span>
+                                            break;
+                                    }
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">@claim.ClaimItems.Count items</span>
+                                    <br>
+                                    <small class="text-muted">@claim.ClaimItems.Sum(i => i.HoursWorked) hrs</small>
+                                </td>
+                                <td>
+                                    <strong>@claim.TotalAmount.ToString("C")</strong>
+                                    <br>
+                                    <small class="text-muted">Avg: @((claim.TotalAmount / claim.ClaimItems.Sum(i => i.HoursWorked)).ToString("C"))/hr</small>
+                                </td>
+                                <td>
+                                    @if (daysPending > 14)
+                                    {
+                                        <span class="badge bg-danger fs-6">@daysPending days</span>
+                                        <br>
+
+                                        <small class="text-danger">URGENT</small>
+                                    }
+                                    else if (daysPending > 7)
+                                    {
+                                        <span class="badge bg-warning fs-6">@daysPending days</span>
+                                        <br>
+
+                                        <small class="text-warning">Overdue</small>
+                                    }
+                                    else if (daysPending > 3)
+                                    {
+                                        <span class="badge bg-info fs-6">@daysPending days</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-success fs-6">@daysPending days</span>
+                                    }
+                                </td>
+                                <td>
+                                    <div class="btn-group-vertical" role="group">
+                                        <a asp-controller="Coordinator" asp-action="ReviewClaim" asp-route-id="@claim.ClaimId"
+                                           class="btn btn-outline-primary btn-sm mb-1">
+                                            <i class="fas fa-search me-1"></i>Review Details
+                                        </a>
+                                        <div class="btn-group" role="group">
+                                            <button type="button" class="btn btn-success btn-sm"
+                                                    onclick="showApproveModal(@claim.ClaimId, '@claim.User.FullName', '@claim.TotalAmount.ToString("C")')">
+                                                <i class="fas fa-check me-1"></i>Approve
+                                            </button>
+                                            <button type="button" class="btn btn-danger btn-sm"
+                                                    onclick="showRejectModal(@claim.ClaimId, '@claim.User.FullName', '@claim.TotalAmount.ToString("C")')">
+                                                <i class="fas fa-times me-1"></i>Reject
+                                            </button>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="text-center py-5">
+                <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                <h5 class="text-success">All Claims Processed!</h5>
+                <p class="text-muted">There are no pending claims requiring manager review at this time.</p>
+                <a asp-action="Index" class="btn btn-primary">
+                    <i class="fas fa-tachometer-alt me-1"></i>Return to Dashboard
+                </a>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Bulk Actions (if needed) -->
+@if (Model.Any())
+{
+    <div class="card mt-4">
+        <div class="card-header bg-secondary text-white">
+            <h6 class="mb-0">
+                <i class="fas fa-tasks me-1"></i>Bulk Actions
+            </h6>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <p class="mb-2"><strong>Quick Stats:</strong></p>
+                    <ul class="list-unstyled small">
+                        <li><i class="fas fa-circle text-danger me-1"></i>High Priority: @Model.Count(c => (DateTime.Now - c.SubmissionDate).Days > 7) claims</li>
+                        <li><i class="fas fa-circle text-warning me-1"></i>Medium Priority: @Model.Count(c => (DateTime.Now - c.SubmissionDate).Days > 3 && (DateTime.Now - c.SubmissionDate).Days <= 7) claims</li>
+                        <li><i class="fas fa-circle text-success me-1"></i>Normal Priority: @Model.Count(c => (DateTime.Now - c.SubmissionDate).Days <= 3) claims</li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <p class="mb-2"><strong>Recommended Actions:</strong></p>
+                    <div class="d-grid gap-2">
+                        @if (Model.Any(c => (DateTime.Now - c.SubmissionDate).Days > 7))
+                        {
+                            <button class="btn btn-warning btn-sm" onclick="filterByPriority('high')">
+                                <i class="fas fa-filter me-1"></i>Focus on High Priority Claims
+                            </button>
+                        }
+                        <button class="btn btn-info btn-sm" onclick="exportPendingClaims()">
+                            <i class="fas fa-download me-1"></i>Export Pending Claims Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Approve Modal -->
+<div class="modal fade" id="approveModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-check-circle me-1"></i>Approve Claim
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form asp-controller="Coordinator" asp-action="ApproveClaim" method="post">
+                <div class="modal-body">
+                    <input type="hidden" name="id" id="approveClaimId" />
+                    <p>Are you sure you want to approve this claim?</p>
+                    <div class="alert alert-info">
+                        <strong>Lecturer:</strong> <span id="approveLecturerName"></span><br>
+                        <strong>Amount:</strong> <span id="approveAmount"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label for="approveComments" class="form-label">Manager Approval Comments (Optional)</label>
+                        <textarea name="comments" id="approveComments" class="form-control" rows="3"
+                                  placeholder="Add any manager comments about this approval..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-check me-1"></i>Approve Claim
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Reject Modal -->
+<div class="modal fade" id="rejectModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-times-circle me-1"></i>Reject Claim
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form asp-controller="Coordinator" asp-action="RejectClaim" method="post">
+                <div class="modal-body">
+                    <input type="hidden" name="id" id="rejectClaimId" />
+                    <p>Are you sure you want to reject this claim?</p>
+                    <div class="alert alert-warning">
+                        <strong>Lecturer:</strong> <span id="rejectLecturerName"></span><br>
+                        <strong>Amount:</strong> <span id="rejectAmount"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label for="rejectComments" class="form-label">Manager Rejection Reason <span class="text-danger">*</span></label>
+                        <textarea name="comments" id="rejectComments" class="form-control" rows="3" required
+                                  placeholder="Please provide a detailed reason for rejecting this claim..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-times me-1"></i>Reject Claim
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function filterClaims() {
+            const statusFilter = document.getElementById('statusFilter').value;
+            const priorityFilter = document.getElementById('priorityFilter').value;
+            const lecturerFilter = document.getElementById('lecturerFilter').value;
+            const rows = document.querySelectorAll('#pendingClaimsTable tbody tr');
+
+            rows.forEach(row => {
+                let showRow = true;
+
+                // Status filter
+                if (statusFilter && !row.dataset.status.includes(statusFilter)) {
+                    showRow = false;
+                }
+
+                // Priority filter
+                if (priorityFilter && row.dataset.priority !== priorityFilter) {
+                    showRow = false;
+                }
+
+                // Lecturer filter
+                if (lecturerFilter && row.dataset.lecturer !== lecturerFilter) {
+                    showRow = false;
+                }
+
+                row.style.display = showRow ? '' : 'none';
+            });
+        }
+        //Method to clear filters
+        function clearFilters() {
+            document.getElementById('statusFilter').value = '';
+            document.getElementById('priorityFilter').value = '';
+            document.getElementById('lecturerFilter').value = '';
+
+            const rows = document.querySelectorAll('#pendingClaimsTable tbody tr');
+            rows.forEach(row => {
+                row.style.display = '';
+            });
+        }
+        //Filters by priority
+        function filterByPriority(priority) {
+            document.getElementById('priorityFilter').value = priority;
+            filterClaims();
+        }
+        //Aproving claims
+        function showApproveModal(claimId, lecturerName, amount) {
+            document.getElementById('approveClaimId').value = claimId;
+            document.getElementById('approveLecturerName').textContent = lecturerName;
+            document.getElementById('approveAmount').textContent = amount;
+            new bootstrap.Modal(document.getElementById('approveModal')).show();
+        }
+        //Reject Claims
+        function showRejectModal(claimId, lecturerName, amount) {
+            document.getElementById('rejectClaimId').value = claimId;
+            document.getElementById('rejectLecturerName').textContent = lecturerName;
+            document.getElementById('rejectAmount').textContent = amount;
+            new bootstrap.Modal(document.getElementById('rejectModal')).show();
+        }
+        //Exporting Pending Claims
+        function exportPendingClaims() {
+            const table = document.getElementById('pendingClaimsTable');
+            const rows = Array.from(table.querySelectorAll('tr:not([style*="display: none"])'));
+
+            const csvContent = rows.map(row => {
+                const cells = Array.from(row.querySelectorAll('th, td'));
+                return cells.slice(0, -1).map(cell => { // Exclude actions column
+                    let content = cell.textContent.trim();
+                    content = content.replace(/\s+/g, ' ');
+                    if (content.includes(',') || content.includes('"')) {
+                        content = '"' + content.replace(/"/g, '""') + '"';
+                    }
+                    return content;
+                }).join(',');
+            }).join('\n');
+
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `pending-claims-${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }
+
+        // Auto-refresh every 5 minutes to show updated pending times
+        setInterval(function() {
+            location.reload();
+        }, 300000);
+    </script>
+}

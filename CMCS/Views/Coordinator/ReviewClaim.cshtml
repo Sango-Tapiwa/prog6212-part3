@@ -1,0 +1,288 @@
+﻿@model CMCS.Models.Claim
+@{
+    ViewData["Title"] = "Review Claim #" + Model.ClaimId;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="display-6">
+        <i class="fas fa-search me-2"></i>Review Claim #@Model.ClaimId
+    </h1>
+    <a asp-action="Index" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-1"></i>Back to Pending Claims
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <!-- Claim Information -->
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle me-1"></i>Claim Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Lecturer:</strong> @Model.User.FullName</p>
+                        <p><strong>Email:</strong> @Model.User.Email</p>
+                        <p><strong>Submission Date:</strong> @Model.SubmissionDate.ToString("dd/MM/yyyy HH:mm")</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p>
+                            <strong>Current Status:</strong>
+                            @switch (Model.Status)
+                            {
+                                case CMCS.Models.ClaimStatus.Submitted:
+                                    <span class="badge bg-info">Submitted</span>
+                                    break;
+                                case CMCS.Models.ClaimStatus.UnderReview:
+                                    <span class="badge bg-warning">Under Review</span>
+                                    break;
+                            }
+                        </p>
+                        <p><strong>Total Items:</strong> @Model.ClaimItems.Count</p>
+                        <p><strong>Total Amount:</strong> <span class="h5 text-success">@Model.TotalAmount.ToString("C")</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Claim Items -->
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-tasks me-1"></i>Claim Items
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Date</th>
+                                <th>Activity Description</th>
+                                <th>Hours</th>
+                                <th>Rate</th>
+                                <th>Line Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model.ClaimItems)
+                            {
+                                <tr>
+                                    <td>@item.Date.ToString("dd/MM/yyyy")</td>
+                                    <td>@item.ActivityDescription</td>
+                                    <td>@item.HoursWorked</td>
+                                    <td>@item.HourlyRate.ToString("C")</td>
+                                    <td><strong>@item.LineTotal.ToString("C")</strong></td>
+                                </tr>
+                            }
+                        </tbody>
+                        <tfoot class="table-dark">
+                            <tr>
+                                <td colspan="3"><strong>Total</strong></td>
+                                <td><strong>@Model.ClaimItems.Sum(i => i.HoursWorked) hours</strong></td>
+                                <td><strong>@Model.TotalAmount.ToString("C")</strong></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Supporting Documents -->
+        @if (Model.Documents.Any())
+        {
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-paperclip me-1"></i>Supporting Documents
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        @foreach (var document in Model.Documents)
+                        {
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="fas fa-file me-2"></i>
+                                    <strong>@document.FileName</strong>
+                                    <br>
+                                    <small class="text-muted">
+                                        Uploaded: @document.UploadDate.ToString("dd/MM/yyyy HH:mm") |
+                                        Size: @(document.FileSize / 1024)KB
+                                    </small>
+                                </div>
+                                <a href="@document.FilePath" class="btn btn-outline-primary btn-sm" target="_blank">
+                                    <i class="fas fa-download me-1"></i>Download
+                                </a>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                No supporting documents were uploaded with this claim.
+            </div>
+        }
+    </div>
+
+    <div class="col-md-4">
+        <!-- Action Panel -->
+        <div class="card">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0">
+                    <i class="fas fa-cogs me-1"></i>Review Actions
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-success btn-lg"
+                            onclick="showApproveModal(@Model.ClaimId, '@Model.User.FullName', '@Model.TotalAmount.ToString("C")')">
+                        <i class="fas fa-check me-1"></i>Approve Claim
+                    </button>
+                    <button type="button" class="btn btn-danger btn-lg"
+                            onclick="showRejectModal(@Model.ClaimId, '@Model.User.FullName', '@Model.TotalAmount.ToString("C")')">
+                        <i class="fas fa-times me-1"></i>Reject Claim
+                    </button>
+                </div>
+
+                <hr class="my-3">
+
+                <div class="text-center">
+                    <small class="text-muted">
+                        <i class="fas fa-clock me-1"></i>
+                        Days since submission:
+                        <strong>@((DateTime.Now - Model.SubmissionDate).Days) days</strong>
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Review Guidelines -->
+        <div class="card mt-4">
+            <div class="card-header bg-secondary text-white">
+                <h6 class="mb-0">
+                    <i class="fas fa-list-ul me-1"></i>Review Guidelines
+                </h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled small">
+                    <li class="mb-2">
+                        <i class="fas fa-check text-success me-1"></i>
+                        Verify activity descriptions are detailed and appropriate
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-check text-success me-1"></i>
+                        Ensure hours worked are reasonable (max 24 per day)
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-check text-success me-1"></i>
+                        Check hourly rates are within approved ranges
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-check text-success me-1"></i>
+                        Review supporting documents if provided
+                    </li>
+                    <li>
+                        <i class="fas fa-check text-success me-1"></i>
+                        Verify total calculations are correct
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Approve Modal -->
+<div class="modal fade" id="approveModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-check-circle me-1"></i>Approve Claim
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form asp-action="ApproveClaim" method="post">
+                <div class="modal-body">
+                    <input type="hidden" name="id" id="approveClaimId" />
+                    <p>Are you sure you want to approve this claim?</p>
+                    <div class="alert alert-info">
+                        <strong>Lecturer:</strong> <span id="approveLecturerName"></span><br>
+                        <strong>Amount:</strong> <span id="approveAmount"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label for="approveComments" class="form-label">Approval Comments (Optional)</label>
+                        <textarea name="comments" id="approveComments" class="form-control" rows="3"
+                                  placeholder="Add any comments about this approval..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-check me-1"></i>Approve Claim
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Reject Modal -->
+<div class="modal fade" id="rejectModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-times-circle me-1"></i>Reject Claim
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form asp-action="RejectClaim" method="post">
+                <div class="modal-body">
+                    <input type="hidden" name="id" id="rejectClaimId" />
+                    <p>Are you sure you want to reject this claim?</p>
+                    <div class="alert alert-warning">
+                        <strong>Lecturer:</strong> <span id="rejectLecturerName"></span><br>
+                        <strong>Amount:</strong> <span id="rejectAmount"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label for="rejectComments" class="form-label">Rejection Reason <span class="text-danger">*</span></label>
+                        <textarea name="comments" id="rejectComments" class="form-control" rows="3" required
+                                  placeholder="Please provide a reason for rejecting this claim..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-times me-1"></i>Reject Claim
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function showApproveModal(claimId, lecturerName, amount) {
+            document.getElementById('approveClaimId').value = claimId;
+            document.getElementById('approveLecturerName').textContent = lecturerName;
+            document.getElementById('approveAmount').textContent = amount;
+            new bootstrap.Modal(document.getElementById('approveModal')).show();
+        }
+
+        function showRejectModal(claimId, lecturerName, amount) {
+            document.getElementById('rejectClaimId').value = claimId;
+            document.getElementById('rejectLecturerName').textContent = lecturerName;
+            document.getElementById('rejectAmount').textContent = amount;
+            new bootstrap.Modal(document.getElementById('rejectModal')).show();
+        }
+    </script>
+}

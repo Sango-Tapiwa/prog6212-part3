@@ -1,0 +1,320 @@
+﻿@model IEnumerable<CMCS.Models.Claim>
+@{
+    ViewData["Title"] = "Reports";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="display-6">
+        <i class="fas fa-chart-bar me-2"></i>Claims Reports & Analytics
+    </h1>
+    <div>
+        <button class="btn btn-success" onclick="exportToCSV()">
+            <i class="fas fa-download me-1"></i>Export CSV
+        </button>
+        <a asp-action="Index" class="btn btn-outline-secondary">
+            <i class="fas fa-tachometer-alt me-1"></i>Dashboard
+        </a>
+    </div>
+</div>
+
+<!-- Summary Statistics -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-file-alt fa-2x mb-2"></i>
+                <h4>@Model.Count()</h4>
+                <p class="mb-0">Total Claims</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-dollar-sign fa-2x mb-2"></i>
+                <h4>@Model.Sum(c => c.TotalAmount).ToString("C0")</h4>
+                <p class="mb-0">Total Value</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-clock fa-2x mb-2"></i>
+                <h4>@(Model.Any() ? Math.Round(Model.Where(c => c.ApprovedDate.HasValue).Average(c => (c.ApprovedDate.Value - c.SubmissionDate).Days), 1) : 0)</h4>
+                <p class="mb-0">Avg Processing Days</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-percentage fa-2x mb-2"></i>
+                <h4>@(Model.Any() ? Math.Round((double)Model.Count(c => c.Status == CMCS.Models.ClaimStatus.Approved) / Model.Count() * 100, 1) : 0)%</h4>
+                <p class="mb-0">Approval Rate</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">
+                    <i class="fas fa-pie-chart me-1"></i>Claims by Status
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="statusChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-line me-1"></i>Monthly Submissions
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="monthlyChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Lecturer Performance -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">
+                    <i class="fas fa-users me-1"></i>Lecturer Performance Summary
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Lecturer</th>
+                                <th>Total Claims</th>
+                                <th>Approved</th>
+                                <th>Rejected</th>
+                                <th>Pending</th>
+                                <th>Total Amount</th>
+                                <th>Approval Rate</th>
+                                <th>Avg Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var lecturerGroup in Model.GroupBy(c => c.User).OrderByDescending(g => g.Sum(c => c.TotalAmount)))
+                            {
+                                var lecturer = lecturerGroup.Key;
+                                var claims = lecturerGroup.ToList();
+                                var approved = claims.Count(c => c.Status == CMCS.Models.ClaimStatus.Approved);
+                                var rejected = claims.Count(c => c.Status == CMCS.Models.ClaimStatus.Rejected);
+                                var pending = claims.Count(c => c.Status == CMCS.Models.ClaimStatus.Submitted || c.Status == CMCS.Models.ClaimStatus.UnderReview);
+                                var totalAmount = claims.Sum(c => c.TotalAmount);
+                                var approvalRate = claims.Count > 0 ? Math.Round((double)approved / claims.Count * 100, 1) : 0;
+                                var avgAmount = claims.Count > 0 ? totalAmount / claims.Count : 0;
+
+                                <tr>
+                                    <td><strong>@lecturer.FullName</strong></td>
+                                    <td>@claims.Count</td>
+                                    <td><span class="badge bg-success">@approved</span></td>
+                                    <td><span class="badge bg-danger">@rejected</span></td>
+                                    <td><span class="badge bg-warning">@pending</span></td>
+                                    <td><strong>@totalAmount.ToString("C")</strong></td>
+                                    <td>
+                                        @if (approvalRate >= 80)
+                                        {
+                                            <span class="badge bg-success">@approvalRate%</span>
+                                        }
+                                        else if (approvalRate >= 60)
+                                        {
+                                            <span class="badge bg-warning">@approvalRate%</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-danger">@approvalRate%</span>
+                                        }
+                                    </td>
+                                    <td>@avgAmount.ToString("C")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Detailed Claims Table -->
+<div class="card">
+    <div class="card-header bg-light">
+        <h5 class="mb-0">
+            <i class="fas fa-table me-1"></i>Detailed Claims Report
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover" id="reportsTable">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Claim ID</th>
+                        <th>Lecturer</th>
+                        <th>Submission Date</th>
+                        <th>Status</th>
+                        <th>Processing Time</th>
+                        <th>Items</th>
+                        <th>Total Hours</th>
+                        <th>Total Amount</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var claim in Model.OrderByDescending(c => c.SubmissionDate))
+                    {
+                        var processingDays = claim.ApprovedDate.HasValue 
+                            ? (claim.ApprovedDate.Value - claim.SubmissionDate).Days 
+                            : (DateTime.Now - claim.SubmissionDate).Days;
+                        
+                        <tr>
+                            <td><strong>#@claim.ClaimId</strong></td>
+                            <td>@claim.User.FullName</td>
+                            <td>@claim.SubmissionDate.ToString("dd/MM/yyyy")</td>
+                            <td>
+                                @switch (claim.Status)
+                                {
+                                    case CMCS.Models.ClaimStatus.Submitted:
+                                        <span class="badge bg-info">Submitted</span>
+                                        break;
+                                    case CMCS.Models.ClaimStatus.UnderReview:
+                                        <span class="badge bg-warning">Under Review</span>
+                                        break;
+                                    case CMCS.Models.ClaimStatus.Approved:
+                                        <span class="badge bg-success">Approved</span>
+                                        break;
+                                    case CMCS.Models.ClaimStatus.Rejected:
+                                        <span class="badge bg-danger">Rejected</span>
+                                        break;
+                                }
+                            </td>
+                            <td>@processingDays days</td>
+                            <td>@claim.ClaimItems.Count</td>
+                            <td>@claim.ClaimItems.Sum(i => i.HoursWorked)</td>
+                            <td><strong>@claim.TotalAmount.ToString("C")</strong></td>
+                            <td>
+                                <a asp-controller="Coordinator" asp-action="ReviewClaim" asp-route-id="@claim.ClaimId" 
+                                   class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-eye me-1"></i>View
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Status Chart
+        const statusCtx = document.getElementById('statusChart').getContext('2d');
+        const statusData = {
+            labels: ['Submitted', 'Under Review', 'Approved', 'Rejected'],
+            datasets: [{
+                data: [
+                    @Model.Count(c => c.Status == CMCS.Models.ClaimStatus.Submitted),
+                    @Model.Count(c => c.Status == CMCS.Models.ClaimStatus.UnderReview),
+                    @Model.Count(c => c.Status == CMCS.Models.ClaimStatus.Approved),
+                    @Model.Count(c => c.Status == CMCS.Models.ClaimStatus.Rejected)
+                ],
+                backgroundColor: ['#0dcaf0', '#ffc107', '#198754', '#dc3545']
+            }]
+        };
+
+        new Chart(statusCtx, {
+            type: 'doughnut',
+            data: statusData,
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+
+        // Monthly Chart
+        const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
+        const monthlyData = @Html.Raw(Json.Serialize(
+            Model.GroupBy(c => new { c.SubmissionDate.Year, c.SubmissionDate.Month })
+                 .OrderBy(g => g.Key.Year).ThenBy(g => g.Key.Month)
+                 .Select(g => new { 
+                     Month = $"{g.Key.Year}-{g.Key.Month:00}", 
+                     Count = g.Count() 
+                 })
+                 .ToList()
+        ));
+
+        new Chart(monthlyCtx, {
+            type: 'line',
+            data: {
+                labels: monthlyData.map(d => d.month),
+                datasets: [{
+                    label: 'Claims Submitted',
+                    data: monthlyData.map(d => d.count),
+                    borderColor: '#0d6efd',
+                    backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+
+        // Export to CSV function
+        function exportToCSV() {
+            const table = document.getElementById('reportsTable');
+            const rows = Array.from(table.querySelectorAll('tr'));
+            
+            const csvContent = rows.map(row => {
+                const cells = Array.from(row.querySelectorAll('th, td'));
+                return cells.map(cell => {
+                    let content = cell.textContent.trim();
+                    // Remove extra whitespace and newlines
+                    content = content.replace(/\s+/g, ' ');
+                    // Escape quotes and wrap in quotes if contains comma
+                    if (content.includes(',') || content.includes('"')) {
+                        content = '"' + content.replace(/"/g, '""') + '"';
+                    }
+                    return content;
+                }).join(',');
+            }).join('\n');
+
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `claims-report-${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }
+    </script>
+}

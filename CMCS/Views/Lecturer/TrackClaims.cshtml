@@ -1,0 +1,236 @@
+﻿@model IEnumerable<CMCS.Models.Claim>
+@{
+    ViewData["Title"] = "Track Claims";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="display-6">
+        <i class="fas fa-search me-2"></i>Track My Claims
+    </h1>
+    <div>
+        <a asp-action="SubmitClaim" class="btn btn-success">
+            <i class="fas fa-plus me-1"></i>Submit New Claim
+        </a>
+        <a asp-action="Index" class="btn btn-outline-secondary">
+            <i class="fas fa-tachometer-alt me-1"></i>Dashboard
+        </a>
+    </div>
+</div>
+
+<!-- Filter and Search -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3">
+                <select class="form-select" id="statusFilter">
+                    <option value="">All Statuses</option>
+                    <option value="Submitted">Submitted</option>
+                    <option value="UnderReview">Under Review</option>
+                    <option value="Approved">Approved</option>
+                    <option value="Rejected">Rejected</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <input type="date" class="form-control" id="dateFrom" placeholder="From Date">
+            </div>
+            <div class="col-md-3">
+                <input type="date" class="form-control" id="dateTo" placeholder="To Date">
+            </div>
+            <div class="col-md-3">
+                <button class="btn btn-primary" onclick="filterClaims()">
+                    <i class="fas fa-filter me-1"></i>Filter
+                </button>
+                <button class="btn btn-outline-secondary" onclick="clearFilters()">
+                    <i class="fas fa-times me-1"></i>Clear
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Claims Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-file-alt fa-2x mb-2"></i>
+                <h4>@Model.Count()</h4>
+                <p class="mb-0">Total Claims</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-clock fa-2x mb-2"></i>
+                <h4>@Model.Count(c => c.Status == CMCS.Models.ClaimStatus.Submitted || c.Status == CMCS.Models.ClaimStatus.UnderReview)</h4>
+                <p class="mb-0">Pending</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-check-circle fa-2x mb-2"></i>
+                <h4>@Model.Count(c => c.Status == CMCS.Models.ClaimStatus.Approved)</h4>
+                <p class="mb-0">Approved</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-dollar-sign fa-2x mb-2"></i>
+                <h4>@Model.Where(c => c.Status == CMCS.Models.ClaimStatus.Approved).Sum(c => c.TotalAmount).ToString("C")</h4>
+                <p class="mb-0">Total Approved</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Claims Table -->
+<div class="card">
+    <div class="card-header bg-light">
+        <h5 class="mb-0">
+            <i class="fas fa-list me-1"></i>Claims History
+        </h5>
+    </div>
+    <div class="card-body">
+        @if (Model.Any())
+        {
+            <div class="table-responsive">
+                <table class="table table-hover" id="claimsTable">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Claim ID</th>
+                            <th>Submission Date</th>
+                            <th>Status</th>
+                            <th>Items</th>
+                            <th>Total Amount</th>
+                            <th>Days Since Submission</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var claim in Model.OrderByDescending(c => c.SubmissionDate))
+                        {
+                            var daysSince = (DateTime.Now - claim.SubmissionDate).Days;
+                            <tr data-status="@claim.Status" data-date="@claim.SubmissionDate.ToString("yyyy-MM-dd")">
+                                <td><strong>#@claim.ClaimId</strong></td>
+                                <td>@claim.SubmissionDate.ToString("dd/MM/yyyy")</td>
+                                <td>
+                                    @switch (claim.Status)
+                                    {
+                                        case CMCS.Models.ClaimStatus.Submitted:
+                                            <span class="badge bg-info">
+                                                <i class="fas fa-paper-plane me-1"></i>Submitted
+                                            </span>
+                                            break;
+                                        case CMCS.Models.ClaimStatus.UnderReview:
+                                            <span class="badge bg-warning">
+                                                <i class="fas fa-eye me-1"></i>Under Review
+                                            </span>
+                                            break;
+                                        case CMCS.Models.ClaimStatus.Approved:
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-check me-1"></i>Approved
+                                            </span>
+                                            break;
+                                        case CMCS.Models.ClaimStatus.Rejected:
+                                            <span class="badge bg-danger">
+                                                <i class="fas fa-times me-1"></i>Rejected
+                                            </span>
+                                            break;
+                                    }
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">@claim.ClaimItems.Count items</span>
+                                </td>
+                                <td><strong>@claim.TotalAmount.ToString("C")</strong></td>
+                                <td>
+                                    @if (claim.Status == CMCS.Models.ClaimStatus.Submitted || claim.Status == CMCS.Models.ClaimStatus.UnderReview)
+                                    {
+                                        if (daysSince > 14)
+                                        {
+                                            <span class="badge bg-danger">@daysSince days</span>
+                                        }
+                                        else if (daysSince > 7)
+                                        {
+                                            <span class="badge bg-warning">@daysSince days</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-success">@daysSince days</span>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Completed</span>
+                                    }
+                                </td>
+                                <td>
+                                    <a asp-action="ViewClaim" asp-route-id="@claim.ClaimId" class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-eye me-1"></i>View Details
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="text-center py-5">
+                <i class="fas fa-file-alt fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No claims found</h5>
+                <p class="text-muted">You haven't submitted any claims yet.</p>
+                <a asp-action="SubmitClaim" class="btn btn-primary">
+                    <i class="fas fa-plus me-1"></i>Submit Your First Claim
+                </a>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function filterClaims() {
+            const statusFilter = document.getElementById('statusFilter').value;
+            const dateFrom = document.getElementById('dateFrom').value;
+            const dateTo = document.getElementById('dateTo').value;
+            const rows = document.querySelectorAll('#claimsTable tbody tr');
+
+            rows.forEach(row => {
+                let showRow = true;
+
+                // Status filter
+                if (statusFilter && !row.dataset.status.includes(statusFilter)) {
+                    showRow = false;
+                }
+
+                // Date range filter
+                const rowDate = row.dataset.date;
+                if (dateFrom && rowDate < dateFrom) {
+                    showRow = false;
+                }
+                if (dateTo && rowDate > dateTo) {
+                    showRow = false;
+                }
+
+                row.style.display = showRow ? '' : 'none';
+            });
+        }
+
+        function clearFilters() {
+            document.getElementById('statusFilter').value = '';
+            document.getElementById('dateFrom').value = '';
+            document.getElementById('dateTo').value = '';
+
+            const rows = document.querySelectorAll('#claimsTable tbody tr');
+            rows.forEach(row => {
+                row.style.display = '';
+            });
+        }
+    </script>
+}

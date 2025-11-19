@@ -1,0 +1,125 @@
+﻿@model IEnumerable<CMCS.Models.Claim>
+@{
+    ViewData["Title"] = "Lecturer Dashboard";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="display-6">
+        <i class="fas fa-tachometer-alt me-2"></i>Lecturer Dashboard
+    </h1>
+    <a asp-action="SubmitClaim" class="btn btn-success btn-lg">
+        <i class="fas fa-plus me-1"></i>Submit New Claim
+    </a>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-file-alt fa-2x mb-2"></i>
+                <h4>@Model.Count()</h4>
+                <p class="mb-0">Total Claims</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-clock fa-2x mb-2"></i>
+                <h4>@Model.Count(c => c.Status == CMCS.Models.ClaimStatus.Submitted || c.Status == CMCS.Models.ClaimStatus.UnderReview)</h4>
+                <p class="mb-0">Pending</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-check-circle fa-2x mb-2"></i>
+                <h4>@Model.Count(c => c.Status == CMCS.Models.ClaimStatus.Approved)</h4>
+                <p class="mb-0">Approved</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-dollar-sign fa-2x mb-2"></i>
+                <h4>@Model.Where(c => c.Status == CMCS.Models.ClaimStatus.Approved).Sum(c => c.TotalAmount).ToString("C")</h4>
+                <p class="mb-0">Total Approved</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header bg-light">
+        <h5 class="mb-0">
+            <i class="fas fa-list me-1"></i>Recent Claims
+        </h5>
+    </div>
+    <div class="card-body">
+        @if (Model.Any())
+        {
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Claim ID</th>
+                            <th>Submission Date</th>
+                            <th>Status</th>
+                            <th>Items</th>
+                            <th>Total Amount</th>
+                            <th>Documents</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var claim in Model.Take(10))
+                        {
+                            <tr>
+                                <td><strong>#@claim.ClaimId</strong></td>
+                                <td>@claim.SubmissionDate.ToString("dd/MM/yyyy")</td>
+                                <td>
+                                    @switch (claim.Status)
+                                    {
+                                        case CMCS.Models.ClaimStatus.Submitted:
+                                            <span class="badge bg-info">Submitted</span>
+                                            break;
+                                        case CMCS.Models.ClaimStatus.UnderReview:
+                                            <span class="badge bg-warning">Under Review</span>
+                                            break;
+                                        case CMCS.Models.ClaimStatus.Approved:
+                                            <span class="badge bg-success">Approved</span>
+                                            break;
+                                        case CMCS.Models.ClaimStatus.Rejected:
+                                            <span class="badge bg-danger">Rejected</span>
+                                            break;
+                                    }
+                                </td>
+                                <td>@claim.ClaimItems.Count items</td>
+                                <td><strong>@claim.TotalAmount.ToString("C")</strong></td>
+                                <td>@claim.Documents.Count files</td>
+                                <td>
+                                    <a asp-action="ViewClaim" asp-route-id="@claim.ClaimId" class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-eye me-1"></i>View
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="text-center py-5">
+                <i class="fas fa-file-alt fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No claims submitted yet</h5>
+                <p class="text-muted">Start by submitting your first claim!</p>
+                <a asp-action="SubmitClaim" class="btn btn-primary">
+                    <i class="fas fa-plus me-1"></i>Submit Claim
+                </a>
+            </div>
+        }
+    </div>
+</div>

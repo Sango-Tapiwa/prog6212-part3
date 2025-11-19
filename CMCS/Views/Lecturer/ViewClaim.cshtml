@@ -1,0 +1,261 @@
+﻿@model CMCS.Models.Claim
+@{
+    ViewData["Title"] = "View Claim #" + Model.ClaimId;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="display-6">
+        <i class="fas fa-eye me-2"></i>Claim #@Model.ClaimId Details
+    </h1>
+    <a asp-action="Index" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-1"></i>Back to Dashboard
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <!-- Claim Information -->
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle me-1"></i>Claim Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Submission Date:</strong> @Model.SubmissionDate.ToString("dd/MM/yyyy HH:mm")</p>
+                        <p>
+                            <strong>Current Status:</strong>
+                            @switch (Model.Status)
+                            {
+                                case CMCS.Models.ClaimStatus.Submitted:
+                                    <span class="badge bg-info">Submitted</span>
+                                    break;
+                                case CMCS.Models.ClaimStatus.UnderReview:
+                                    <span class="badge bg-warning">Under Review</span>
+                                    break;
+                                case CMCS.Models.ClaimStatus.Approved:
+                                    <span class="badge bg-success">Approved</span>
+                                    break;
+                                case CMCS.Models.ClaimStatus.Rejected:
+                                    <span class="badge bg-danger">Rejected</span>
+                                    break;
+                            }
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Total Items:</strong> @Model.ClaimItems.Count</p>
+                        <p><strong>Total Amount:</strong> <span class="h5 text-success">@Model.TotalAmount.ToString("C")</span></p>
+                        @if (Model.ApprovedDate.HasValue)
+                        {
+                            <p><strong>Processed Date:</strong> @Model.ApprovedDate.Value.ToString("dd/MM/yyyy HH:mm")</p>
+                        }
+                    </div>
+                </div>
+                @if (!string.IsNullOrEmpty(Model.ApprovalComments))
+                {
+                    <hr>
+                    <div class="alert alert-info">
+                        <strong>Comments:</strong> @Model.ApprovalComments
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Claim Items -->
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-tasks me-1"></i>Claim Items
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Date</th>
+                                <th>Activity Description</th>
+                                <th>Hours</th>
+                                <th>Rate</th>
+                                <th>Line Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model.ClaimItems)
+                            {
+                                <tr>
+                                    <td>@item.Date.ToString("dd/MM/yyyy")</td>
+                                    <td>@item.ActivityDescription</td>
+                                    <td>@item.HoursWorked</td>
+                                    <td>@item.HourlyRate.ToString("C")</td>
+                                    <td><strong>@item.LineTotal.ToString("C")</strong></td>
+                                </tr>
+                            }
+                        </tbody>
+                        <tfoot class="table-dark">
+                            <tr>
+                                <td colspan="3"><strong>Total</strong></td>
+                                <td><strong>@Model.ClaimItems.Sum(i => i.HoursWorked) hours</strong></td>
+                                <td><strong>@Model.TotalAmount.ToString("C")</strong></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Supporting Documents -->
+        @if (Model.Documents.Any())
+        {
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-paperclip me-1"></i>Supporting Documents
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        @foreach (var document in Model.Documents)
+                        {
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="fas fa-file me-2"></i>
+                                    <strong>@document.FileName</strong>
+                                    <br>
+                                    <small class="text-muted">
+                                        Uploaded: @document.UploadDate.ToString("dd/MM/yyyy HH:mm") |
+                                        Size: @(document.FileSize / 1024)KB
+                                    </small>
+                                </div>
+                                <a href="@document.FilePath" class="btn btn-outline-primary btn-sm" target="_blank">
+                                    <i class="fas fa-download me-1"></i>Download
+                                </a>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                No supporting documents were uploaded with this claim.
+            </div>
+        }
+    </div>
+
+    <div class="col-md-4">
+        <!-- Status Timeline -->
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                <h6 class="mb-0">
+                    <i class="fas fa-history me-1"></i>Status Timeline
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="timeline">
+                    <div class="timeline-item completed">
+                        <i class="fas fa-paper-plane"></i>
+                        <div class="timeline-content">
+                            <h6>Submitted</h6>
+                            <small>@Model.SubmissionDate.ToString("dd/MM/yyyy HH:mm")</small>
+                        </div>
+                    </div>
+
+                    @if (Model.Status == CMCS.Models.ClaimStatus.UnderReview || Model.Status == CMCS.Models.ClaimStatus.Approved || Model.Status == CMCS.Models.ClaimStatus.Rejected)
+                    {
+                        <div class="timeline-item completed">
+                            <i class="fas fa-eye"></i>
+                            <div class="timeline-content">
+                                <h6>Under Review</h6>
+                                <small>Being processed</small>
+                            </div>
+                        </div>
+                    }
+
+                    @if (Model.Status == CMCS.Models.ClaimStatus.Approved)
+                    {
+                        <div class="timeline-item completed success">
+                            <i class="fas fa-check"></i>
+                            <div class="timeline-content">
+                                <h6>Approved</h6>
+                                <small>@Model.ApprovedDate?.ToString("dd/MM/yyyy HH:mm")</small>
+                            </div>
+                        </div>
+                    }
+                    else if (Model.Status == CMCS.Models.ClaimStatus.Rejected)
+                    {
+                        <div class="timeline-item completed danger">
+                            <i class="fas fa-times"></i>
+                            <div class="timeline-content">
+                                <h6>Rejected</h6>
+                                <small>@Model.ApprovedDate?.ToString("dd/MM/yyyy HH:mm")</small>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .timeline {
+        position: relative;
+        padding-left: 30px;
+    }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 15px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #dee2e6;
+        }
+
+    .timeline-item {
+        position: relative;
+        margin-bottom: 20px;
+    }
+
+        .timeline-item i {
+            position: absolute;
+            left: -22px;
+            top: 0;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #6c757d;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+
+        .timeline-item.completed i {
+            background: #0d6efd;
+        }
+
+        .timeline-item.success i {
+            background: #198754;
+        }
+
+        .timeline-item.danger i {
+            background: #dc3545;
+        }
+
+    .timeline-content h6 {
+        margin: 0;
+        font-weight: 600;
+    }
+
+    .timeline-content small {
+        color: #6c757d;
+    }
+</style>
