@@ -128,8 +128,18 @@ Across the system:
 
 ---
 ## References
-1.	Microsoft. (2023). ASP.NET Core MVC overview. Available at: https://learn.microsoft.com/aspnet/core/mvc [Accessed 2 Sept. 2025].
-2.	W3Schools. (n.d.) ASP Tutorial. Available at: https://www.w3schools.com/asp/default.ASP [Accessed: 26 August 2025].
+1.	Cloudflare. (n.d.) PDF generation using Browser Rendering. Available at: https://developers.cloudflare.com/browser-rendering/how-to/pdf-generation/
+ [Accessed: 17 November 2025].
+2.	Microsoft. (2023). ASP.NET Core MVC overview. Available at: https://learn.microsoft.com/aspnet/core/mvc [Accessed: 2 September 2025].
+3.	Microsoft. (n.d.) Data seeding in Entity Framework Core. Available at: https://learn.microsoft.com/en-us/ef/core/modeling/data-seeding
+ [Accessed: 16 November 2025].
+4.	Microsoft. (n.d.) Unit testing C# with MSTest. Available at: https://learn.microsoft.com/en-us/dotnet/core/testing/unit-testing-csharp-with-mstest
+ [Accessed: 20 October 2025].
+5.	W3Schools. (n.d.) ASP Tutorial. Available at: https://www.w3schools.com/asp/default.ASP [Accessed: 26 August 2025].
+
+
+
+
 
 
 
